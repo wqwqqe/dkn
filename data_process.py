@@ -109,11 +109,11 @@ def process_news_data(source, target, word2int_path, entity2int_path, mode):
         return text.lower().strip()
 
     def process(news, word2int, entity2int):
-        processed_news = pd.DataFrame(columns=['id', 'title', 'entities'])
+        processed_news = []
+        print(len(processed_news))
         with tqdm(total=len(news), desc="process words and entities") as qbar:
             for row in news.itertuples(index=False):
                 new_row = [row.id, [0] * Config.num_words_a_news, [0] * Config.num_words_a_news]
-
                 local_entity_map = {}
                 for e in json.loads(row.entities):
                     if e['Confidence'] > Config.entity_confidence_threshold and e['WikidataId'] in entity2int:
@@ -129,9 +129,11 @@ def process_news_data(source, target, word2int_path, entity2int_path, mode):
                 except IndexError:
                     pass
 
-                processed_news[len(processed_news)] = new_row
+                processed_news.append(new_row)
 
                 qbar.update(1)
+        processed_news = pd.DataFrame(processed_news, columns=['id', 'title', 'entities'])
+
         return processed_news
 
     if mode == 'train':
@@ -167,13 +169,13 @@ def process_news_data(source, target, word2int_path, entity2int_path, mode):
     elif mode == 'test':
         news = pd.read_table(source)
         news.entities.fillna('[]', inplace=True)
-        processed_news = pd.DataFrame(columns=['id', 'title', 'entities'])
 
         word2int = dict(pd.read_csv(word2int_path, sep='\t').values.tolist())
         entity2int = dict(pd.read_csv(entity2int_path, sep='\t').values.tolist())
     else:
         print("wrong")
         return 0
+
     process(news, word2int, entity2int).to_csv(target, sep='\t', index=False)
 
 
@@ -205,7 +207,7 @@ if __name__ == '__main__':
     # clean_behavior_data("./data/train/behaviors.tsv", "./data/train/behaviors.csv")
     # clean_news_data("./data/train/news.tsv", "./data/train/news_clean.csv")
     # balance("./data/train/behaviors_clean.csv", "./data/train/behaviors_balance.csv", [0, 5, 1])
-    # process_news_data("./data/train/news_clean.csv", "./data/train/news_with_entity.csv", "./data/train/word2int.csv",
-    #                  "./data/train/entity2int.csv", mode='train')
+    process_news_data("./data/train/news_clean.csv", "./data/train/news_with_entity.csv", "./data/train/word2int.csv",
+                      "./data/train/entity2int.csv", mode='train')
     transform_entity_embedding("./data/train/entity_embedding.vec", "./data/train/entity_embedding.npy",
                                "./data/train/entity2int.csv")
