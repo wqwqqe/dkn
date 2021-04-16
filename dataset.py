@@ -61,7 +61,8 @@ class DKNDataset(Dataset):
         item = {}
         row = self.behaviors.iloc[idx]
         item['clicked'] = row.clicked
-        item['candidate_news'] = news2dict(row.candidate_news, self.news_with_entity)
+        item['candidate_news'] = news2dict(
+            row.candidate_news, self.news_with_entity)
         item['history'] = [news2dict(x, self.news_with_entity) for x in
                            row.history.split()[:Config.num_clicked_news_a_user]]
 
@@ -77,5 +78,6 @@ class DKNDataset(Dataset):
 
 
 if __name__ == '__main__':
-    data = DKNDataset("data/train/behaviors_balance.csv", "data/train/news_with_entity.csv")
+    data = DKNDataset("data/train/behaviors_balance.csv",
+                      "data/train/news_with_entity.csv")
     print(data.behaviors)

@@ -17,7 +17,8 @@ class DKN(nn.Module):
                 len(self.config.window_sizes) * 2 * self.config.num_filters, 16
             ),
             nn.ReLU(),
-            nn.Linear(16, 1)
+            nn.Linear(16, 1),
+            nn.Sigmoid()
         )
 
     def forward(self, candidate_news, history):
@@ -27,5 +28,6 @@ class DKN(nn.Module):
             user_vector = self.attention(candidate_news_vector, history_vector)
         else:
             user_vector = history_vector.mean(dim=1)
-        p = self.dnn(torch.cat((user_vector, candidate_news_vector), dim=1)).squeeze(dim=1)
+        p = self.dnn(
+            torch.cat((user_vector, candidate_news_vector), dim=1)).squeeze(dim=1)
         return p

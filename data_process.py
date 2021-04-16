@@ -28,12 +28,15 @@ def clean_behavior_data(behaviors_source, behaviors_target):
     +─────────────────+──────────────────────────────────────────────────────────+
     0表示没有点击，1表示点击了
     """
-    behaviors = pd.read_table(behaviors_source, header=None, usecols=[3, 4], names=['history', 'impressions'])
+    behaviors = pd.read_table(behaviors_source, header=None, usecols=[
+                              3, 4], names=['history', 'impressions'])
     behaviors.impressions = behaviors.impressions.str.split()
     behaviors = behaviors.explode('impressions').reset_index(drop=True)
-    behaviors['candidate_news'], behaviors['clicked'] = behaviors.impressions.str.split('-').str
+    behaviors['candidate_news'], behaviors['clicked'] = behaviors.impressions.str.split(
+        '-').str
     behaviors.history.fillna('', inplace=True)
-    behaviors.to_csv(behaviors_target, sep='\t', index=False, columns=['history', 'candidate_news', 'clicked'])
+    behaviors.to_csv(behaviors_target, sep='\t', index=False,
+                     columns=['history', 'candidate_news', 'clicked'])
 
 
 def clean_news_data(news_source, news_target):
@@ -61,7 +64,8 @@ def clean_news_data(news_source, news_target):
     +─────────────────+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────+
 
     """
-    news = pd.read_table(news_source, header=None, usecols=[0, 3, 6], names=['id', 'title', 'entities'])
+    news = pd.read_table(news_source, header=None, usecols=[
+                         0, 3, 6], names=['id', 'title', 'entities'])
     news.to_csv(news_target, sep='\t', index=False)
 
 
@@ -79,7 +83,8 @@ def balance(source, target, true_false_rate):
         false_part = false_part.sample(n=int(len(true_part) / low))
     elif len(true_part) / len(false_part) > high:
         true_part = true_part.sample(n=int(len(false_part) * high))
-    new_behavior = pd.concat([true_part, false_part]).sample(frac=1).reset_index(drop=True)
+    new_behavior = pd.concat([true_part, false_part]).sample(
+        frac=1).reset_index(drop=True)
     new_behavior.to_csv(target, sep='\t', index=False)
 
 
@@ -113,7 +118,8 @@ def process_news_data(source, target, word2int_path, entity2int_path, mode):
         print(len(processed_news))
         with tqdm(total=len(news), desc="process words and entities") as qbar:
             for row in news.itertuples(index=False):
-                new_row = [row.id, [0] * Config.num_words_a_news, [0] * Config.num_words_a_news]
+                new_row = [row.id, [0] * Config.num_words_a_news,
+                           [0] * Config.num_words_a_news]
                 local_entity_map = {}
                 for e in json.loads(row.entities):
                     if e['Confidence'] > Config.entity_confidence_threshold and e['WikidataId'] in entity2int:
@@ -132,7 +138,8 @@ def process_news_data(source, target, word2int_path, entity2int_path, mode):
                 processed_news.append(new_row)
 
                 qbar.update(1)
-        processed_news = pd.DataFrame(processed_news, columns=['id', 'title', 'entities'])
+        processed_news = pd.DataFrame(processed_news, columns=[
+                                      'id', 'title', 'entities'])
 
         return processed_news
 
@@ -150,9 +157,11 @@ def process_news_data(source, target, word2int_path, entity2int_path, mode):
                 for w in clean_text(row.title).split():  # 统计标题中单词出现的频率
                     word2freq[w] = word2freq.get(w, 0) + 1
                 for e in json.loads(row.entities):  # 统计实体出现的频率，按照置信度比例来算
-                    times = len(list(filter(lambda x: x < len(row.title), e['OccurrenceOffsets']))) * e['Confidence']
+                    times = len(list(filter(lambda x: x < len(
+                        row.title), e['OccurrenceOffsets']))) * e['Confidence']
                     if times > 0:
-                        entity2freq[e['WikidataId']] = entity2freq.get(e['WikidataId'], 0) + times
+                        entity2freq[e['WikidataId']] = entity2freq.get(
+                            e['WikidataId'], 0) + times
                 qbar.update(1)
 
         for key, value in word2freq.items():
@@ -163,15 +172,18 @@ def process_news_data(source, target, word2int_path, entity2int_path, mode):
             if value >= Config.entity_freq_threshold:
                 entity2int[key] = len(entity2int) + 1
 
-        pd.DataFrame(word2int.items(), columns=['word', 'int']).to_csv(word2int_path, sep='\t', index=False)
-        pd.DataFrame(entity2int.items(), columns=['entity', 'int']).to_csv(entity2int_path, sep='\t', index=False)
+        pd.DataFrame(word2int.items(), columns=['word', 'int']).to_csv(
+            word2int_path, sep='\t', index=False)
+        pd.DataFrame(entity2int.items(), columns=['entity', 'int']).to_csv(
+            entity2int_path, sep='\t', index=False)
 
     elif mode == 'test':
         news = pd.read_table(source)
         news.entities.fillna('[]', inplace=True)
 
         word2int = dict(pd.read_csv(word2int_path, sep='\t').values.tolist())
-        entity2int = dict(pd.read_csv(entity2int_path, sep='\t').values.tolist())
+        entity2int = dict(pd.read_csv(
+            entity2int_path, sep='\t').values.tolist())
     else:
         print("wrong")
         return 0
@@ -189,14 +201,18 @@ def transform_entity_embedding(source, target, entity2int_path):
     +────────────+────────────────────────────────────────────+
     """
     entity_embedding = pd.read_table(source, header=None)
-    entity_embedding['vector'] = entity_embedding.iloc[:, 1:101].values.tolist()
+    entity_embedding['vector'] = entity_embedding.iloc[:,
+                                                       1:101].values.tolist()
 
-    entity_embedding = entity_embedding[[0, 'vector']].rename(columns={0: "entity"})
+    entity_embedding = entity_embedding[[0, 'vector']].rename(columns={
+                                                              0: "entity"})
 
     entity2int = pd.read_csv(entity2int_path, sep='\t')
-    merged_df = pd.merge(entity_embedding, entity2int, on='entity').sort_values('int')
+    merged_df = pd.merge(entity_embedding, entity2int,
+                         on='entity').sort_values('int')
 
-    entity_embedding_transformed = np.zeros((len(entity2int) + 1, Config.entity_embedding_dim))
+    entity_embedding_transformed = np.zeros(
+        (len(entity2int) + 1, Config.entity_embedding_dim))
     for row in merged_df.itertuples(index=False):
         entity_embedding_transformed[row.int] = row.vector
     np.save(target, entity_embedding_transformed)
@@ -204,9 +220,11 @@ def transform_entity_embedding(source, target, entity2int_path):
 
 
 if __name__ == '__main__':
-    # clean_behavior_data("./data/train/behaviors.tsv", "./data/train/behaviors.csv")
-    # clean_news_data("./data/train/news.tsv", "./data/train/news_clean.csv")
-    # balance("./data/train/behaviors_clean.csv", "./data/train/behaviors_balance.csv", [0, 5, 1])
+    clean_behavior_data("./data/train/behaviors.tsv",
+                        "./data/train/behaviors.csv")
+    clean_news_data("./data/train/news.tsv", "./data/train/news_clean.csv")
+    balance("./data/train/behaviors_clean.csv",
+            "./data/train/behaviors_balance.csv", [0.8, 1])
     process_news_data("./data/train/news_clean.csv", "./data/train/news_with_entity.csv", "./data/train/word2int.csv",
                       "./data/train/entity2int.csv", mode='train')
     transform_entity_embedding("./data/train/entity_embedding.vec", "./data/train/entity_embedding.npy",
