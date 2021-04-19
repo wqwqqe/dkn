@@ -220,12 +220,12 @@ def transform_entity_embedding(source, target, entity2int_path):
 
 
 if __name__ == '__main__':
-    clean_behavior_data("./data/train/behaviors.tsv",
-                        "./data/train/behaviors.csv")
-    clean_news_data("./data/train/news.tsv", "./data/train/news_clean.csv")
-    balance("./data/train/behaviors_clean.csv",
-            "./data/train/behaviors_balance.csv", [0.8, 1])
-    process_news_data("./data/train/news_clean.csv", "./data/train/news_with_entity.csv", "./data/train/word2int.csv",
-                      "./data/train/entity2int.csv", mode='train')
-    transform_entity_embedding("./data/train/entity_embedding.vec", "./data/train/entity_embedding.npy",
-                               "./data/train/entity2int.csv")
+    clean_behavior_data("./data/test/behaviors.tsv",
+                        "./data/test/behaviors.csv")
+    clean_news_data("./data/test/news.tsv", "./data/test/news_clean.csv")
+    balance("./data/test/behaviors.csv",
+            "./data/test/behaviors_balance.csv", [0.8, 1])
+    process_news_data("./data/test/news_clean.csv", "./data/test/news_with_entity.csv", "./data/test/word2int.csv",
+                      "./data/test/entity2int.csv", mode='test')
+    transform_entity_embedding("./data/test/entity_embedding.vec", "./data/test/entity_embedding.npy",
+                               "./data/test/entity2int.csv")

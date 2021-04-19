@@ -33,7 +33,7 @@ def train():
     train_dataset, val_dataset = random_split(
         dataset, (train_size, validation_size))
     train_dataloader = DataLoader(train_dataset, batch_size=Config.batch_size, shuffle=True,
-                                  num_workers=Config.num_workers)
+                                  num_workers=Config.num_workers, drop_last=True)
     val_dataloader = DataLoader(val_dataset, batch_size=Config.batch_size, shuffle=True,
                                 num_workers=Config.num_workers, drop_last=True)
     entity_embedding = np.load("./data/train/entity_embedding.npy")
@@ -54,7 +54,7 @@ def train():
             dkn.train()
 
     with tqdm(total=(Config.num_epoch*(int(len(train_dataset)/Config.batch_size)+1)), desc="Training") as qbar:
-        for i in range(Config.num_epoch):
+        while epoch < (Config.num_epoch*(int(len(train_dataset)/Config.batch_size)+1)):
             for x in train_dataloader:
                 y_pred = dkn(x['candidate_news'], x['history'])
                 y = x["clicked"].float().to(device)
@@ -102,7 +102,10 @@ def validate(model, dataloader):
     tp = 0
     tp_fp = 0
     tp_fn = 0
+    cnt = 0
     for x in dataloader:
+        print("hello"+str(cnt))
+        cnt += 1
         y_pred = model(x['candidate_news'], x['history'])
         y = x["clicked"].float().to(device)
         loss = criterion(y_pred, y)
@@ -112,12 +115,30 @@ def validate(model, dataloader):
         acc_full.append(acc)
         tp_fp += np.sum(y_predict == 1)
         tp_fn += np.sum(y.cpu().numpy() == 1)
-        tp += np.sum(y_predict[y.cpu().numpy() == 1] == 1)
+        tp += np.sum(y.cpu().numpy()[y_predict == 1] == 1)
     precision = tp / tp_fp
     recall = tp / tp_fn
     f1 = 2*precision*recall/(precision+recall)
     return np.mean(loss_full), np.mean(acc_full), precision, recall, f1
 
 
+def test():
+    dataset = DKNDataset('data/test/behaviors_balance.csv',
+                         "data/test/news_with_entity.csv")
+    dataloader = DataLoader(
+        dataset, batch_size=Config.batch_size, drop_last=True)
+    entity_embedding = np.load("./data/test/entity_embedding.npy")
+    dkn = DKN(Config, entity_embedding, None).to(device)
+    checkpoint_path = latest_checkpoint("./result")
+    if checkpoint_path is not None:
+        checkpoint = torch.load(checkpoint_path)
+        dkn.load_state_dict(checkpoint['model_state_dict'])
+        dkn.train()
+    with torch.no_grad():
+        a, b, c, d, e = validate(dkn, dataloader)
+        print("loss is %f,acc is %f ,precision is %f,recall is %f,f1 is %f" %
+              (a, b, c, d, e))
+
+
 if __name__ == '__main__':
-    train()
+    test()
