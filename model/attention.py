@@ -10,6 +10,7 @@ class Attention(nn.Module):
         self.dnn = nn.Sequential(
             nn.Linear(
                 len(self.config.window_sizes) * 2 * self.config.num_filters, 16),
+            nn.ReLU(),
             nn.Linear(16, 1)
         )
 

@@ -1,3 +1,4 @@
+from numpy.core.defchararray import index
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -142,7 +143,7 @@ def process_news_data(source, target, word2int_path, entity2int_path, mode):
                                       'id', 'title', 'entities'])
 
         return processed_news
-
+    """
     if mode == 'train':
         word2int = {}
         word2freq = {}
@@ -178,15 +179,13 @@ def process_news_data(source, target, word2int_path, entity2int_path, mode):
             entity2int_path, sep='\t', index=False)
 
     elif mode == 'test':
-        news = pd.read_table(source)
-        news.entities.fillna('[]', inplace=True)
+    """
+    news = pd.read_table(source)
+    news.entities.fillna('[]', inplace=True)
 
-        word2int = dict(pd.read_csv(word2int_path, sep='\t').values.tolist())
-        entity2int = dict(pd.read_csv(
-            entity2int_path, sep='\t').values.tolist())
-    else:
-        print("wrong")
-        return 0
+    word2int = dict(pd.read_csv(word2int_path, sep='\t').values.tolist())
+    entity2int = dict(pd.read_csv(
+        entity2int_path, sep='\t').values.tolist())
 
     process(news, word2int, entity2int).to_csv(target, sep='\t', index=False)
 
@@ -219,13 +218,55 @@ def transform_entity_embedding(source, target, entity2int_path):
     print(len(entity_embedding_transformed))
 
 
+def get_context_embedding(entity2int_path, graph_path, entity_embedding_path, relation_embedding_path, target):
+    entity2int = pd.read_csv(entity2int_path, sep="\t")
+    entity_embedding = np.load(entity_embedding_path)
+    # print(entity_embedding[1])
+    context_embedding = np.zeros(
+        (len(entity_embedding), Config.entity_embedding_dim))
+    relation_embedding = pd.read_table(relation_embedding_path, header=None)
+    relation_embedding["vector"] = relation_embedding.iloc[:,
+                                                           1:101].values.tolist()
+    relation = pd.read_table(graph_path, header=None, names=[
+                             "head", "relation", "tail"])
+    with tqdm(total=len(entity2int)) as qbar:
+        for row in entity2int.itertuples(index=False):
+            cnt = 0
+            e = np.zeros(Config.entity_embedding_dim)
+            # 处理头节点
+            head = relation[relation["head"] == row.entity]
+            for temp in head.itertuples(index=False):
+                r = temp.relation
+                vec = relation_embedding[relation_embedding[0]
+                                         == r].vector.to_numpy()
+                t = entity_embedding[row.int]+vec[0]
+                e = e+t
+                cnt += 1
+            # 处理尾节点
+            tail = relation[relation["tail"] == row.entity]
+            for temp in tail.itertuples(index=False):
+                r = temp.relation
+                vec = relation_embedding[relation_embedding[0]
+                                         == r].vector.to_numpy()
+                h = entity_embedding[row.int]-vec[0]
+                e = e+h
+                cnt += 1
+            context_embedding[row.int] = e/cnt
+            qbar.update(1)
+    np.save(target, context_embedding)
+
+
 if __name__ == '__main__':
     clean_behavior_data("./data/test/behaviors.tsv",
                         "./data/test/behaviors.csv")
     clean_news_data("./data/test/news.tsv", "./data/test/news_clean.csv")
     balance("./data/test/behaviors.csv",
             "./data/test/behaviors_balance.csv", [0.8, 1])
-    process_news_data("./data/test/news_clean.csv", "./data/test/news_with_entity.csv", "./data/test/word2int.csv",
-                      "./data/test/entity2int.csv", mode='test')
-    transform_entity_embedding("./data/test/entity_embedding.vec", "./data/test/entity_embedding.npy",
-                               "./data/test/entity2int.csv")
+    process_news_data("./data/test/news_clean.csv", "./data/test/news_with_entity.csv", "./data/train/word2int.csv",
+                      "./data/train/entity2int.csv", mode='test')
+    """
+    transform_entity_embedding("./data/train/entity_embedding.vec", "./data/train/entity_embedding.npy",
+                               "./data/train/entity2int.csv")
+    get_context_embedding("./data/train/entity2int.csv",
+                          "./data/wikidata-graph.tsv", "./data/train/entity_embedding.npy", "./data/train/relation_embedding.vec", "./data/train/context_embedding.npy")
+    """

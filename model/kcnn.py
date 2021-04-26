@@ -1,20 +1,22 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+import numpy as np
+device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
 
 class KCNN(nn.Module):
     def __init__(self, config, entity_embediing, context_embedding):
         super(KCNN, self).__init__()
         self.config = config
-        self.word_embedding = nn.Embedding(config.num_word_tokens, config.word_embedding_dim)
+        self.word_embedding = nn.Embedding(
+            config.num_word_tokens, config.word_embedding_dim)
         self.entity_embedding = entity_embediing
         self.context_embedding = context_embedding
         self.transform_matrix = nn.Parameter(
             torch.empty(self.config.word_embedding_dim, self.config.entity_embedding_dim))
-        self.transform_bias = nn.Parameter(torch.empty(self.config.word_embedding_dim))
+        self.transform_bias = nn.Parameter(
+            torch.empty(self.config.word_embedding_dim))
 
         self.conv_filters = nn.ModuleDict({
             str(x): nn.Conv2d(3 if self.config.use_context else 2, self.config.num_filters,
@@ -38,7 +40,8 @@ class KCNN(nn.Module):
         return :
                 vector:batch_size,len(window_size)*num_filters
         """
-        word_vector = self.word_embedding(torch.stack(news["word"], dim=1).to(device))
+        word_vector = self.word_embedding(
+            torch.stack(news["word"], dim=1).to(device))
 
         entity_vector = F.embedding(
             torch.stack(news["entity"], dim=1),
@@ -80,10 +83,10 @@ class KCNN(nn.Module):
             multi_channel_vector = torch.stack([
                 word_vector, transformed_entity_vector
             ], dim=1)
-
         pooled_vector = []
         for x in self.config.window_sizes:
-            convoluted = self.conv_filters[str(x)](multi_channel_vector).squeeze(dim=3)
+            convoluted = self.conv_filters[str(x)](
+                multi_channel_vector).squeeze(dim=3)
             activated = F.relu(convoluted)
             pooled = activated.max(dim=-1)[0]
             pooled_vector.append(pooled)
